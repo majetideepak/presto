@@ -20,7 +20,9 @@ NUM_THREADS ?= $(shell getconf _NPROCESSORS_CONF 2>/dev/null || echo 1)
 CPU_TARGET ?= "avx"
 CMAKE_PREFIX_PATH ?= "/usr/local"
 PRESTOCPP_ROOT_DIR="$(shell pwd)"
+DEPENDENCY_IMAGE="centos8-prestissimo-dependency:latest"
 
+PRESTO_ENABLE_TESTING ?= "ON"
 PRESTO_ENABLE_PARQUET ?= "OFF"
 PRESTO_ENABLE_S3 ?= "OFF"
 PRESTO_ENABLE_HDFS ?= "OFF"
@@ -32,6 +34,7 @@ CMAKE_FLAGS := -DTREAT_WARNINGS_AS_ERRORS=${TREAT_WARNINGS_AS_ERRORS}
 CMAKE_FLAGS += -DENABLE_ALL_WARNINGS=${ENABLE_WALL}
 CMAKE_FLAGS += -DCMAKE_PREFIX_PATH=$(CMAKE_PREFIX_PATH)
 CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
+CMAKE_FLAGS += -DPRESTO_ENABLE_TESTING=$(PRESTO_ENABLE_TESTING)
 CMAKE_FLAGS += -DPRESTO_ENABLE_PARQUET=$(PRESTO_ENABLE_PARQUET)
 CMAKE_FLAGS += -DPRESTO_ENABLE_S3=$(PRESTO_ENABLE_S3)
 CMAKE_FLAGS += -DPRESTO_ENABLE_HDFS=$(PRESTO_ENABLE_HDFS)
@@ -60,8 +63,9 @@ clean:					#: Delete all build artifacts
 	rm -rf $(BUILD_BASE_DIR)
 
 velox-submodule:		#: Check out code for velox submodule
-	git submodule sync --recursive
-	git submodule update --init --recursive
+	rm -rf velox
+	git clone https://github.com/majetideepak/velox.git
+	cd velox && git checkout all-fixes-branch
 
 submodules: velox-submodule
 
@@ -116,6 +120,19 @@ linux-container:
 	cp scripts/setup-$(CONTAINER_NAME).sh scripts/$(CONTAINER_NAME)-container.dockfile velox/scripts/setup-helper-functions.sh /tmp/docker && \
 	cd /tmp/docker && \
 	docker build --build-arg cpu_target=$(CPU_TARGET) --tag "prestocpp/prestocpp-$(CPU_TARGET)-$(CONTAINER_NAME):$(USER)-$(shell date +%Y%m%d)" -f $(CONTAINER_NAME)-container.dockfile .
+
+dev-dependency-image: submodules
+	rm -rf /tmp/deps-docker && \
+	mkdir -p /tmp/deps-docker && \
+	cp scripts/setup-centos.sh scripts/dev-dockerfiles/dependency.dockerfile velox/scripts/setup-helper-functions.sh /tmp/deps-docker && \
+	cp velox/scripts/setup-centos8.sh /tmp/deps-docker/velox-setup-centos.sh && \
+	cp velox/scripts/setup-adapters.sh /tmp/deps-docker/ && \
+	cd /tmp/deps-docker && \
+	docker build --build-arg BUILD_TYPE=$(BUILD_TYPE) --tag $(DEPENDENCY_IMAGE) -f dependency.dockerfile .
+
+dev-runtime-image:
+	docker build --build-arg BUILD_TYPE=$(BUILD_TYPE) \
+                     --build-arg DEPENDENCY_IMAGE="localhost/$(DEPENDENCY_IMAGE)" --tag "centos8-prestissimo-runtime:latest" -f scripts/dev-dockerfiles/prestissimo.dockerfile .
 
 runtime-container:
 	rm -rf /tmp/release-centos-dockerfile && \
