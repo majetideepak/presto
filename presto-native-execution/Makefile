@@ -64,8 +64,7 @@ clean:					#: Delete all build artifacts
 
 velox-submodule:		#: Check out code for velox submodule
 	rm -rf velox
-	git clone https://github.com/majetideepak/velox.git
-	cd velox && git checkout all-fixes-branch
+	git clone https://github.com/facebookincubator/velox.git
 
 submodules: velox-submodule
 

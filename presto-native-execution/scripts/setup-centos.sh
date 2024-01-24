@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -efx -o pipefail
+set -e
+set -x
 
 export FB_OS_VERSION=v2022.11.14.00
 export RE2_VERSION=2021-04-01
@@ -26,9 +27,11 @@ dnf install -y perl-XML-XPath
 
 python3 -m pip install regex pyyaml chevron black six
 
-# Activate gcc9; enable errors on unset variables afterwards.
-source /opt/rh/gcc-toolset-9/enable || exit 1
-set -u
+# Required for Antlr4
+dnf install -y libuuid-devel
+
+export CC=/opt/rh/gcc-toolset-9/root/bin/gcc
+export CXX=/opt/rh/gcc-toolset-9/root/bin/g++
 
 CPU_TARGET="${CPU_TARGET:-avx}"
 SCRIPT_DIR=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")
@@ -40,7 +43,15 @@ else
 fi
 
 export COMPILER_FLAGS=$(echo -n $(get_cxx_flags $CPU_TARGET))
-CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+
+(
+  wget --max-redirect 3 https://download.libsodium.org/libsodium/releases/LATEST.tar.gz &&
+  tar -xzvf LATEST.tar.gz &&
+  cd libsodium-stable &&
+  ./configure &&
+  make "-j$(nproc)" &&
+  make install
+)
 
 (
   wget http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz &&
@@ -50,6 +61,27 @@ CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
   make "-j$(nproc)" &&
   make install &&
   ln -s /usr/local/gperf/3_1/bin/gperf /usr/local/bin/
+)
+
+(
+  git clone https://github.com/facebook/folly &&
+  cd folly &&
+  git checkout $FB_OS_VERSION &&
+  cmake_install -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=ON -DFOLLY_HAVE_INT128_T=ON
+)
+
+(
+  git clone https://github.com/facebookincubator/fizz &&
+  cd fizz &&
+  git checkout $FB_OS_VERSION &&
+  cmake_install -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=ON fizz
+)
+
+(
+  git clone https://github.com/facebook/wangle &&
+  cd wangle &&
+  git checkout $FB_OS_VERSION &&
+  cmake_install -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=ON wangle
 )
 
 (
@@ -64,6 +96,13 @@ CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
   cd re2 &&
   git checkout $RE2_VERSION &&    
   cmake_install -DBUILD_SHARED_LIBS=ON
+)
+
+(
+  git clone https://github.com/facebook/fbthrift &&
+  cd fbthrift &&
+  git checkout $FB_OS_VERSION &&
+  cmake_install -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=ON
 )
 
 dnf clean all
