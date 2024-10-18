@@ -16,7 +16,7 @@
 
 #pragma once
 
-namespace facebook::velox::exec {
+namespace facebook::presto::functions {
 
 /// Dynamically opens and registers functions defined in a shared library (.so)
 ///

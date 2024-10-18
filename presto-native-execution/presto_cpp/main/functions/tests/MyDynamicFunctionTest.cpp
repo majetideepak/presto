@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "presto_cpp/main/functions/DynamicLibraryLoader.h"
 #include "velox/functions/FunctionRegistry.h"
+#include "velox/functions/prestosql/tests/utils/FunctionBaseTest.h"
 
 namespace facebook::presto::functions::test {
 
-TEST(DynamicLinkTest, dynamicLoad) {
-  const auto dynamicFunction = [&](std::optional<double> a) {
+class DynamicLinkTest : public velox::functions::test::FunctionBaseTest {};
+
+TEST_F(DynamicLinkTest, dynamicLoad) {
+  const auto dynamicFunction = [&](std::optional<int64_t> a) {
     return evaluateOnce<int64_t>("dynamic_123()", a);
   };
 
-  auto signaturesBefore = getFunctionSignatures().size();
+  auto signaturesBefore = velox::getFunctionSignatures().size();
 
   // Function does not exist yet.
   EXPECT_THROW(dynamicFunction(0), std::invalid_argument);
@@ -36,9 +38,9 @@ TEST(DynamicLinkTest, dynamicLoad) {
   std::string libraryPath = MY_DYNAMIC_FUNCTION_LIBRARY_PATH;
   libraryPath += "/libvelox_function_my_dynamic.so";
 
-  exec::loadDynamicLibraryFunctions(libraryPath.data());
+  loadDynamicLibraryFunctions(libraryPath.data());
 
-  auto signaturesAfter = getFunctionSignatures().size();
+  auto signaturesAfter = velox::getFunctionSignatures().size();
   EXPECT_EQ(signaturesAfter, signaturesBefore + 1);
 
   // Make sure the function exists now.

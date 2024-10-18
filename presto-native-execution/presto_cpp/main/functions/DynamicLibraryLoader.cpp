@@ -17,9 +17,7 @@
 #include <iostream>
 #include <dlfcn.h>
 
-#include "velox/expression/DynamicLibraryLoader.h"
-
-namespace facebook::velox::exec {
+namespace facebook::presto::functions {
 
 static constexpr const char* kSymbolName = "registry";
 
