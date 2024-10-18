@@ -14,6 +14,7 @@ add_subdirectory(types)
 add_subdirectory(http)
 add_subdirectory(common)
 add_subdirectory(thrift)
+add_subdirectory(functions)
 
 add_library(
   presto_server_lib
