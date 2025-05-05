@@ -99,48 +99,6 @@ void PrometheusStatsReporter::registerHistogramMetricExportType(
     int64_t min,
     int64_t max,
     const std::vector<int32_t>& pcts) const {
-  if (registeredMetricsMap_.count(key)) {
-    // Already registered;
-    VLOG(1) << "Trying to register already registered metric " << key;
-    return;
-  }
-  auto numBuckets = (max - min) / bucketWidth;
-  auto bound = min + bucketWidth;
-  std::string sanitizedMetricKey = std::string(key);
-  // '.' is replaced with '_'.
-  std::replace(sanitizedMetricKey.begin(), sanitizedMetricKey.end(), '.', '_');
-
-  auto& histogramFamily = ::prometheus::BuildHistogram()
-                              .Name(sanitizedMetricKey)
-                              .Register(*impl_->registry);
-
-  ::prometheus::Histogram::BucketBoundaries bucketBoundaries;
-  while (numBuckets > 0) {
-    bucketBoundaries.push_back(bound);
-    bound += bucketWidth;
-    numBuckets--;
-  }
-  VELOX_CHECK_GE(bucketBoundaries.size(), 1);
-  auto& histogramMetric = histogramFamily.Add(impl_->labels, bucketBoundaries);
-
-  registeredMetricsMap_.emplace(
-      key, StatsInfo{velox::StatType::HISTOGRAM, &histogramMetric});
-  // If percentiles are provided, create a Summary type metric and register.
-  if (pcts.size() > 0) {
-    auto summaryMetricKey = sanitizedMetricKey + std::string(kSummarySuffix);
-    auto& summaryFamily = ::prometheus::BuildSummary()
-                              .Name(summaryMetricKey)
-                              .Register(*impl_->registry);
-    ::prometheus::Summary::Quantiles quantiles;
-    for (auto pct : pcts) {
-      quantiles.push_back(::prometheus::detail::CKMSQuantiles::Quantile(
-          pct / static_cast<double>(100), 0));
-    }
-    auto& summaryMetric = summaryFamily.Add({impl_->labels}, quantiles);
-    registeredMetricsMap_.emplace(
-        std::string(key).append(kSummarySuffix),
-        StatsInfo{velox::StatType::HISTOGRAM, &summaryMetric});
-  }
 }
 
 void PrometheusStatsReporter::registerHistogramMetricExportType(
@@ -208,22 +166,6 @@ void PrometheusStatsReporter::addHistogramMetricValue(
 void PrometheusStatsReporter::addHistogramMetricValue(
     const char* key,
     size_t value) const {
-  auto metricIterator = registeredMetricsMap_.find(key);
-  if (metricIterator == registeredMetricsMap_.end()) {
-    VLOG(1) << "addMetricValue for unregistered metric " << key;
-    return;
-  }
-  auto histogram = reinterpret_cast<::prometheus::Histogram*>(
-      metricIterator->second.metricPtr);
-  histogram->Observe(value);
-
-  std::string summaryKey = std::string(key).append(kSummarySuffix);
-  metricIterator = registeredMetricsMap_.find(summaryKey);
-  if (metricIterator != registeredMetricsMap_.end()) {
-    auto summary = reinterpret_cast<::prometheus::Summary*>(
-        metricIterator->second.metricPtr);
-    summary->Observe(value);
-  }
 }
 
 void PrometheusStatsReporter::addHistogramMetricValue(
