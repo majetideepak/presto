@@ -943,11 +943,13 @@ size_t TaskManager::cleanOldTasks() {
           if (prestoTask->task->timeSinceTerminationMs() >= oldTaskCleanUpMs_) {
             // Not running and old.
             eraseTask = true;
+            LOG(INFO) << prestoTask->task->printPlanWithStats(true); 
           }
         }
       } else {
         // Use heartbeat to determine the task's age.
         if (prestoTask->timeSinceLastHeartbeatMs() >= oldTaskCleanUpMs_) {
+          LOG(INFO) << prestoTask->task->printPlanWithStats(true); 
           eraseTask = true;
         }
       }
