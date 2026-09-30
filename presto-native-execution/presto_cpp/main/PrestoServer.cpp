@@ -1450,7 +1450,7 @@ std::vector<std::string> PrestoServer::registerVeloxConnectors(
           folly::available_concurrency(),
       0);
   if (numConnectorIoThreads > 0) {
-    connectorIoExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(
+    connectorIoExecutor_ = std::make_unique<folly::CPUThreadPoolExecutor>(
         numConnectorIoThreads,
         std::make_shared<folly::NamedThreadFactory>("ConnectorIO"));
 

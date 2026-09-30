@@ -285,7 +285,7 @@ class PrestoServer {
   std::unique_ptr<folly::CPUThreadPoolExecutor> connectorCpuExecutor_;
 
   // Executor for async IO for connectors.
-  std::unique_ptr<folly::IOThreadPoolExecutor> connectorIoExecutor_;
+  std::unique_ptr<folly::CPUThreadPoolExecutor> connectorIoExecutor_;
 
   // Executor for exchange data over http.
   std::unique_ptr<folly::IOThreadPoolExecutor> exchangeHttpIoExecutor_;
